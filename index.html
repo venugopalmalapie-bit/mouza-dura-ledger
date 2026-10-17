@@ -125,6 +125,12 @@ ol.how{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4
     </div>
 
     <section class="card" style="margin-top:18px">
+      <h2>Land not sold <span class="hint" style="font-family:var(--f-body);font-weight:400">· valued at <span class="rateLbl">₹800</span> per sq ft</span></h2>
+      <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))" id="landLeft"></div>
+      <div id="landTotal" style="margin-top:10px"></div>
+    </section>
+
+    <section class="card" style="margin-top:18px">
       <h2>Notes on plots</h2>
       <div class="notes-list" id="notes"></div>
     </section>
@@ -200,7 +206,7 @@ function render(){
    <div class="tile due"><span class="l">Due from MKR on land sold</span><span class="v">${rsS(t.due)}</span><span class="n">Owed ${rs(t.owed)} · paid ${rs(t.paid)} · ${rs(t.due/4)} per partner</span></div>
    <div class="tile"><span class="l">After token advance</span><span class="v">${net>0.5?rsS(net)+" due":net<-0.5?rsS(-net)+" ahead":"Settled"}</span><span class="n">Token advance ${rs(t.other)} · ${net>0.5?rs(net/4)+" due":rs(-net/4)+(net<-0.5?" ahead":"")} per partner</span></div>`;
   $("#asof").textContent=`Saleable land ${sq(t.saleable)}. Not counted: ${sq(t.gift)} gifted and ${sq(t.nfs)} that can't be sold. ${D.when||""}`;
-  drawMap(); summary(); notes(); table();
+  drawMap(); summary(); notes(); table(); landLeft();
 }
 
 function groupDues(){
@@ -244,6 +250,16 @@ function drawMap(){
   $("#map").innerHTML=h;
   const n={}; D.plots.forEach(p=>n[p.cls]=(n[p.cls]||0)+1);
   $("#legend").innerHTML=Object.keys(LBL).filter(k=>n[k]).map(k=>`<span><svg width="12" height="12"><rect class="s-${k}" x=".5" y=".5" width="11" height="11" rx="2"/></svg>${LBL[k]} (${n[k]})</span>`).join("")+`<span><svg width="10" height="10"><circle class="note" cx="5" cy="5" r="4"/></svg>Has a note</span>`;
+}
+function landLeft(){
+  const R=D.t.rate; document.querySelectorAll(".rateLbl").forEach(e=>e.textContent="₹"+NF.format(R));
+  const un=D.plots.filter(p=>p.st==="Unsold"||p.st==="Part-sold").map(p=>({p,a:p.unsold}));
+  const nf=D.plots.filter(p=>p.st==="Can't be sold").map(p=>({p,a:p.area}));
+  const name=p=>p.key==="NN"?"No-number plot":"Map "+esc(p.map);
+  const tb=(title,rows,note)=>{ const ta=rows.reduce((x,r)=>x+r.a,0); return `<div><h3 style="font:600 13px var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px">${title} (${rows.length})</h3><div class="tbl"><table><thead><tr><th>Plot</th><th class="r">Area</th><th class="r">Value</th></tr></thead><tbody>${rows.map(r=>`<tr class="click" data-k="${r.p.key}"><td>${name(r.p)}${r.p.st==="Part-sold"?' <span class="hint">· unsold part</span>':""}</td><td class="r">${NF2.format(r.a)} sq ft</td><td class="r">${rs(r.a*R)}</td></tr>`).join("")}<tr><td><b>Total</b></td><td class="r"><b>${NF2.format(ta)} sq ft</b></td><td class="r"><b>${rs(ta*R)}</b></td></tr></tbody></table></div><p class="hint" style="margin:6px 0 0">${note(ta)}</p></div>`; };
+  $("#landLeft").innerHTML=tb("Plots unsold",un,ta=>"Still for sale. Share per partner: "+rs(ta*R/4)+".")+tb("Plots unsellable (can't be sold)",nf,()=>"Not counted in saleable land.");
+  const ua=un.reduce((x,r)=>x+r.a,0)+nf.reduce((x,r)=>x+r.a,0);
+  $("#landTotal").innerHTML=`<div class="tbl"><table><tbody><tr><td><b>Unsold + unsellable</b></td><td class="r"><b>${NF2.format(ua)} sq ft</b></td><td class="r"><b>${rs(ua*R)}</b></td></tr></tbody></table></div>`;
 }
 function notes(){
   const ns=D.plots.filter(p=>p.notes);
