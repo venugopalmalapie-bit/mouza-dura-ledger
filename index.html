@@ -52,6 +52,10 @@ ul.points li b{font-variant-numeric:tabular-nums}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 .sw{width:12px;height:12px;border-radius:2px;display:inline-block;border:1px solid var(--line)}
 .mapbox{position:relative;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.tip{position:absolute;z-index:5;pointer-events:none;background:var(--fg);color:var(--bg);border-radius:6px;padding:8px 10px;font-size:12.5px;line-height:1.45;min-width:190px;max-width:260px;font-variant-numeric:tabular-nums;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.tip b.t{font:600 14px var(--f-display);display:block;margin-bottom:2px}
+.tip .k{display:flex;justify-content:space-between;gap:12px} .tip .k span:first-child{opacity:.75}
+.tip .st{display:block;opacity:.85;margin-bottom:4px} .tip .due{color:#f4a77c;font-weight:600}
 svg.map{display:block;width:100%;height:auto}
 .plot{stroke:var(--surface);stroke-width:.6;cursor:pointer}
 .plot:hover{stroke:var(--fg);stroke-width:1} .plot.sel{stroke:var(--fg);stroke-width:1.8}
@@ -112,7 +116,7 @@ ol.how{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4
       <section class="card">
         <h2>Layout plan <span class="hint" style="font-family:var(--f-body);font-weight:400">· tap a plot · a gold dot means the plot has a note</span></h2>
         <div class="legend" id="legend"></div>
-        <div class="mapbox"><svg class="map" id="map" viewBox="40 195 490 452" role="img" aria-label="Layout plan coloured by sale and payment status"></svg></div>
+        <div class="mapbox" id="mapbox"><div class="tip" id="tip" hidden></div><svg class="map" id="map" viewBox="40 195 490 452" role="img" aria-label="Layout plan coloured by sale and payment status"></svg></div>
       </section>
       <section class="card panel" id="panel">
         <h2>Summary</h2>
@@ -219,13 +223,13 @@ function summary(){
 }
 function panel(key){
   const p=D.plots.find(x=>x.key===key); if(!p){sel=null;summary();return;}
-  const money=(p.st==="Sold"||p.st==="Part-sold")?`<p style="margin:0">Sold ${NF2.format(p.sold)} sq ft × ₹${NF.format(D.t.rate)} = <b>${rs(p.owed)}</b> owed to the partners. Paid so far: <b>${rs(p.paid)}</b>. ${p.bal>0.5?`<b style="color:var(--due)">${rs(p.bal)} still due</b> (${rs(p.bal/4)} per partner).`:p.bal<-0.5?`${rs(-p.bal)} paid more than owed.`:"Fully paid."}</p>`:p.st==="Unsold"?`<p style="margin:0">Not sold yet. ${sq(p.area)}, worth ${rs(p.area*D.t.rate)} at ₹${NF.format(D.t.rate)}.</p>`:`<p style="margin:0">${p.st==="Gifted"?"Gifted. Not for sale.":"Can't be sold. Not counted in saleable land."}</p>`;
+  const money=(p.st==="Sold"||p.st==="Part-sold")?`<p style="margin:0">Sold ${NF2.format(p.sold)} sq ft × ₹${NF.format(D.t.rate)} = <b>${rs(p.owed)}</b> owed to the partners. Paid so far: <b>${rs(p.paid)}</b>. ${p.bal>0.5?`<b style="color:var(--due)">${rs(p.bal)} still due</b> (${rs(p.bal/4)} per partner).`:p.bal<-0.5?`${rs(-p.bal)} paid more than owed.`:"Fully paid."}</p>`:p.st==="Unsold"?`<p style="margin:0">Not sold yet. ${sq(p.area)}, worth ${rs(p.area*D.t.rate)} at ₹${NF.format(D.t.rate)}.</p>`:`<p style="margin:0">${p.st==="Gifted"?"Gifted. Not for sale.":"Can't be sold. Not counted in saleable land."} ${sq(p.area)}, valued at ${rs(p.area*D.t.rate)} at ₹${NF.format(D.t.rate)}.</p>`;
   $("#summaryText").innerHTML=`<div class="panel">
    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><h3>Map ${esc(p.key==="NN"?"(no number)":p.map)}</h3><div class="hint">Survey plot ${esc(p.survey)} · ${esc(p.size)}</div></div><button class="btn" id="back">Back to summary</button></div>
    <div><span class="pill p-${p.cls}">${LBL[p.cls]}</span>${p.tranche!==""&&p.tranche!=null?` <span class="pill p-unsold">Tranche ${esc(p.tranche)}</span>`:""}</div>
    ${money}
    ${p.notes?`<div class="notebox">${esc(p.notes)}</div>`:""}
-   <dl><dt>Area</dt><dd>${sq(p.area)}</dd><dt>Sq ft sold</dt><dd>${p.sold?sq(p.sold):"–"}</dd>${p.st==="Part-sold"?`<dt>Still unsold</dt><dd>${sq(p.unsold)}</dd>`:""}<dt>Buyer</dt><dd>${esc(p.buyer||"–")}</dd><dt>Sale date</dt><dd>${esc(fmtDate(p.date)||"–")}</dd></dl></div>`;
+   <dl><dt>Area</dt><dd>${sq(p.area)}</dd><dt>Value at ₹${NF.format(D.t.rate)}</dt><dd>${rs(p.area*D.t.rate)}</dd><dt>Sq ft sold</dt><dd>${p.sold?sq(p.sold):"–"}</dd>${p.st==="Part-sold"?`<dt>Still unsold</dt><dd>${sq(p.unsold)}</dd>`:""}<dt>Buyer</dt><dd>${esc(p.buyer||"–")}</dd><dt>Sale date</dt><dd>${esc(fmtDate(p.date)||"–")}</dd></dl></div>`;
   $("#back").onclick=()=>{sel=null;drawMap();summary();};
 }
 function drawMap(){
@@ -234,7 +238,7 @@ function drawMap(){
   SURVEY.forEach(s=>h+=`<text class="sv" x="${s[1]}" y="${s[2]}">${s[0]}</text>`);
   D.plots.forEach(p=>{ const g=GEOM[p.key]; if(!g) return; const pts=g.split(" ").map(s=>s.split(",").map(Number));
     const cx=pts.reduce((a,q)=>a+q[0],0)/pts.length, cy=pts.reduce((a,q)=>a+q[1],0)/pts.length, top=Math.min(...pts.map(q=>q[1]));
-    h+=`<polygon class="plot s-${p.cls}${sel===p.key?" sel":""}" data-k="${p.key}" points="${g}" tabindex="0" role="button" aria-label="Map ${esc(p.map)}, ${LBL[p.cls]}"><title>Map ${esc(p.map)} · ${LBL[p.cls]}${p.bal>0.5?" · "+rs(p.bal)+" due":""}</title></polygon>`;
+    h+=`<polygon class="plot s-${p.cls}${sel===p.key?" sel":""}" data-k="${p.key}" points="${g}" tabindex="0" role="button" aria-label="Map ${esc(p.map)}, ${LBL[p.cls]}, ${NF2.format(p.area)} sq ft, value ${rs(p.area*D.t.rate)}"></polygon>`;
     h+=`<text class="pn${p.cls==="unsold"||p.cls==="nfs"?" dk":""}" x="${cx}" y="${cy}">${p.key==="NN"?"·":esc(p.map)}</text>`;
     if(p.notes) h+=`<circle class="note" cx="${cx}" cy="${Math.min(cy-7,top+5)}" r="2.6"/>`; });
   $("#map").innerHTML=h;
@@ -250,7 +254,31 @@ function table(){
   $("#plots").innerHTML=`<thead><tr><th>Map</th><th>Status</th><th class="r">Area</th><th class="r">Sold</th><th class="r">Unsold</th><th class="r">Owed</th><th class="r">Paid</th><th class="r">Due</th></tr></thead><tbody>${D.plots.map(p=>`<tr class="click" data-k="${p.key}"><td><b>${esc(p.key==="NN"?"No no.":p.map)}</b>${p.notes?' <span title="Has a note" style="color:var(--flag)">●</span>':""}</td><td><span class="pill p-${p.cls}">${LBL[p.cls]}</span></td><td class="r">${NF2.format(p.area)}</td><td class="r">${p.sold?NF2.format(p.sold):"–"}</td><td class="r">${p.unsold?NF2.format(p.unsold):"–"}</td><td class="r">${p.owed?rs(p.owed):"–"}</td><td class="r">${p.paid?rs(p.paid):"–"}</td><td class="r" style="color:${p.bal>0.5?"var(--due)":"inherit"}">${p.owed?rs(p.bal):"–"}</td></tr>`).join("")}
    <tr><td colspan="3"><b>Total</b></td><td class="r"><b>${NF.format(D.t.sold)}</b></td><td class="r"><b>${NF.format(D.t.unsold)}</b></td><td class="r"><b>${rs(D.t.owed)}</b></td><td class="r"><b>${rs(D.t.paid)}</b></td><td class="r"><b>${rs(D.t.due)}</b></td></tr></tbody>`;
 }
-function pick(k){ sel=k; drawMap(); panel(k); if(innerWidth<880) $("#panel").scrollIntoView({behavior:"smooth",block:"start"}); }
+function tipHTML(p){
+  const R=D.t.rate, row=(k,v,c="")=>`<div class="k"><span>${k}</span><span${c?` class="${c}"`:""}>${v}</span></div>`;
+  let h=`<b class="t">Map ${esc(p.key==="NN"?"(no number)":p.map)}</b><span class="st">${LBL[p.cls]}${p.survey!==""?" · survey "+esc(p.survey):""}</span>`;
+  h+=row("Area",sq(p.area))+row(`Value at ₹${NF.format(R)}`,rs(p.area*R));
+  if(p.st==="Sold"||p.st==="Part-sold"){
+    h+=row("Sold",sq(p.sold))+row("Owed to partners",rs(p.owed))+row("Paid",rs(p.paid));
+    if(p.st==="Part-sold") h+=row("Not yet sold",sq(p.unsold))+row("Unsold value",rs(p.unsold*R));
+    h+= p.bal>0.5?row("Still due",rs(p.bal)+` (${rs(p.bal/4)} each)`,"due"):p.bal<-0.5?row("Paid extra",rs(-p.bal)):row("Balance","Fully paid");
+  } else if(p.st==="Unsold") h+=row("Not yet sold",sq(p.area));
+  else h+=`<div style="opacity:.8;margin-top:3px">${p.st==="Gifted"?"Gifted, not for sale":"Can't be sold"} · not counted in saleable land</div>`;
+  if(p.notes) h+=`<div style="margin-top:5px;opacity:.85">● Has a note. Tap for details.</div>`;
+  return h;
+}
+function moveTip(e,el){
+  const tip=$("#tip"), box=$("#mapbox").getBoundingClientRect(), p=D.plots.find(x=>x.key===el.dataset.k); if(!p) return;
+  tip.innerHTML=tipHTML(p); tip.hidden=false;
+  let x=e.clientX-box.left+14, y=e.clientY-box.top+14;
+  if(x+tip.offsetWidth>box.width-4) x=e.clientX-box.left-tip.offsetWidth-12;
+  if(y+tip.offsetHeight>box.height-4) y=Math.max(4,box.height-tip.offsetHeight-4);
+  tip.style.left=Math.max(4,x)+"px"; tip.style.top=y+"px";
+}
+document.addEventListener("mousemove",e=>{ const el=e.target.closest&&e.target.closest(".plot"); if(el&&D) moveTip(e,el); else if(!$("#tip").hidden) $("#tip").hidden=true; });
+document.addEventListener("focusin",e=>{ const el=e.target.closest&&e.target.closest(".plot"); if(!el||!D) return; const r=el.getBoundingClientRect(); moveTip({clientX:r.right,clientY:r.top},el); });
+document.addEventListener("focusout",()=>{ $("#tip").hidden=true; });
+function pick(k){ $("#tip").hidden=true;  sel=k; drawMap(); panel(k); if(innerWidth<880) $("#panel").scrollIntoView({behavior:"smooth",block:"start"}); }
 document.addEventListener("click",e=>{ const el=e.target.closest("[data-k]"); if(el) pick(el.dataset.k); });
 document.addEventListener("keydown",e=>{ const el=e.target.closest&&e.target.closest(".plot"); if(el&&(e.key==="Enter"||e.key===" ")){e.preventDefault();pick(el.dataset.k);} });
 
