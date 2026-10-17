@@ -212,8 +212,8 @@ function summary(){
   const {t,other}=D, g=groupDues();
   $("#summaryText").innerHTML=`
    <p style="margin:0 0 8px">Where money is still due from MKR:</p>
-   <ul class="points">${g.map(x=>`<li>${esc(x.label)}: ${x.amt>0?`<b style="color:var(--due)">${rs(x.amt)} due</b>`:`<b>${rs(-x.amt)} paid extra</b>`} <span class="hint">(owed ${rs(x.owed)}, paid ${rs(x.paid)})</span></li>`).join("")}
-    <li><b>Total due on land sold: ${rs(t.due)}</b></li></ul>
+   <ul class="points">${g.map(x=>`<li>${esc(x.label)}: ${x.amt>0?`<b style="color:var(--due)">${rs(x.amt)} due</b> · ${rs(x.amt/4)} per partner`:`<b>${rs(-x.amt)} paid extra</b>`} <span class="hint">(owed ${rs(x.owed)}, paid ${rs(x.paid)})</span></li>`).join("")}
+    <li><b>Total due on land sold: ${rs(t.due)}</b> · ${rs(t.due/4)} per partner</li></ul>
    ${other.length?`<p style="margin:12px 0 6px">Paid by MKR, not tied to a plot:</p><ul class="points">${other.map(o=>`<li>${esc(o.desc)}: <b>${rs(o.amt)}</b>${o.note?` <span class="hint">${esc(o.note)}</span>`:""}</li>`).join("")}</ul>`:""}
    <p style="margin:12px 0 0" class="hint">Tap any plot on the map for its details and notes.</p>`;
 }
